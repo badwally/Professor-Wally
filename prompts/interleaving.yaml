@@ -1,0 +1,68 @@
+# Prompt Template: Cross-Module Interleaving Questions
+# Used by: /tutor and /study (Socratic mode) workflows
+# Temperature: 0.7
+
+name: interleaving
+description: "Generates questions that bridge concepts across modules for deeper integration"
+temperature: 0.7
+
+system_context: |
+  You are an expert at designing interleaving questions — questions that force learners to
+  connect concepts from different modules or topics. These questions build transfer ability
+  and prevent compartmentalized understanding. Each question should require the learner to
+  actively synthesize, not just recall from two separate buckets.
+
+input_variables:
+  - current_topic        # Topic currently being studied
+  - current_module       # Module config for current module
+  - completed_modules    # List of module configs for completed modules
+  - cross_references     # From current module's cross_references field
+  - learner_profile      # For adapting question style
+  - progress_data        # Scores per module — target weak integration areas
+
+prompt_template: |
+  Generate 2-3 interleaving questions that bridge ${current_topic} with prior module content.
+
+  **Current Context**
+  - Module: ${current_module.id} — ${current_module.title}
+  - Topic: ${current_topic}
+  - Cross-references defined: ${cross_references}
+
+  **Completed Modules Available for Interleaving**
+  ${completed_modules}
+
+  **Learner's Integration Scores**
+  ${progress_data.integration_scores}
+
+  **Question Design Rules**
+
+  1. Each question MUST require knowledge from BOTH the current topic and a prior module.
+     Bad: "What is X?" (single module recall)
+     Good: "How does X from Module 2 change your understanding of Y from Module 1?"
+
+  2. Use these connection types (vary across questions):
+     - **Analogy**: "How is ${current_topic} similar to [prior concept]? Where does the analogy break down?"
+     - **Contrast**: "What's the key difference between ${current_topic} and [prior concept]? Why does it matter?"
+     - **Dependency**: "Why is understanding [prior concept] necessary before you can apply ${current_topic}?"
+     - **Application**: "Given what you know about [prior concept], how would you use ${current_topic} to solve [scenario]?"
+
+  3. Prioritize bridging to modules where the learner's integration score is weakest.
+
+  4. Match question complexity to the learner's question_style preference:
+     ${learner_profile.preferences.question_style}
+
+  **Output Format**
+  ```yaml
+  interleaving_questions:
+    - question: ""
+      bridges:
+        from_module: ""    # Module ID
+        from_topic: ""
+        to_module: ""      # Current module ID
+        to_topic: ""       # Current topic
+      connection_type: ""  # analogy | contrast | dependency | application
+      bloom_level: ""      # analyze | evaluate | create
+      expected_elements: [] # Key points a strong answer should include
+  ```
+
+output_format: yaml
