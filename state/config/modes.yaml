@@ -1,0 +1,66 @@
+# Operating Modes & Skill Triggers
+# Modes are inferred from user prompts; skills are triggered by /commands or keywords
+
+modes:
+  study:
+    description: "Generate study materials and work through guided study sessions"
+    triggers: ["study", "study guide", "learn", "read module"]
+    policies: [pedagogical-approach, context-discipline]
+  tutor:
+    description: "Interactive Socratic tutoring session"
+    triggers: ["tutor", "teach me", "explain", "help me understand"]
+    policies: [pedagogical-approach, scoring-rubric, spaced-repetition]
+  assess:
+    description: "Quiz or score review"
+    triggers: ["quiz", "test me", "score", "how am I doing", "progress"]
+    policies: [scoring-rubric]
+  research:
+    description: "Deep-dive on a topic with web augmentation"
+    triggers: ["research", "find more about", "deep dive", "look up"]
+    policies: [context-discipline]
+  enrich:
+    description: "Generate enriched study guide and questions for a module"
+    triggers: ["enrich", "generate guide", "create study guide", "prepare module"]
+    policies: [pedagogical-approach, context-discipline]
+
+skills:
+  setup:
+    file: skills/setup/SKILL.md
+    workflow: workflows/definitions/setup.yaml
+    triggers: [setup, configure, first run, get started]
+  ingest:
+    file: skills/ingest/SKILL.md
+    workflow: workflows/definitions/ingest-course.yaml
+    triggers: [ingest, load course, scan materials, index]
+  enrich:
+    file: skills/enrich/SKILL.md
+    workflow: workflows/definitions/enrich-module.yaml
+    triggers: [enrich, generate guide, create study guide, prepare module]
+  study:
+    file: skills/study/SKILL.md
+    workflow: workflows/definitions/study-session.yaml
+    triggers: [study, study session, learn module, work through]
+  quiz:
+    file: skills/quiz/SKILL.md
+    workflow: workflows/definitions/quiz.yaml
+    triggers: [quiz, test me, test, assessment]
+  tutor:
+    file: skills/tutor/SKILL.md
+    workflow: workflows/definitions/study-session.yaml
+    triggers: [tutor, teach me, explain, help me understand, tutor session]
+  score:
+    file: skills/score/SKILL.md
+    workflow: workflows/definitions/score-review.yaml
+    triggers: [score, scores, progress, how am I doing]
+  review:
+    file: skills/review/SKILL.md
+    workflow: null
+    triggers: [review, spaced repetition, srs, flashcards]
+  research:
+    file: skills/research/SKILL.md
+    workflow: workflows/definitions/research-augment.yaml
+    triggers: [research, deep dive, find more, augment]
+  switch:
+    file: skills/switch/SKILL.md
+    workflow: null
+    triggers: [switch, change course, load course]

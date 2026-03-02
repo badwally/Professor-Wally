@@ -1,0 +1,29 @@
+# Learner Profile — "How I Learn"
+# Created during /setup via guided LLM prompts
+# Copy to learner.yaml and fill in during setup
+
+name: ""
+role: ""                          # e.g., "VP Product", "Senior PM", "Student"
+email: ""
+
+learning_style:
+  primary: ""                     # visual | auditory | reading | kinesthetic
+  note_taking: ""                 # outline | cornell | mind-map | freeform
+  preferred_session_length: 30    # minutes
+  peak_learning_hours: []         # e.g., ["06:00-08:00", "20:00-22:00"]
+  preferred_depth: ""             # breadth-first | depth-first | balanced
+
+motivation:
+  goals: []                       # Free text, e.g., ["Pass MIT AI certification"]
+  accountability_style: ""        # self-directed | structured-check-ins | deadline-driven
+  reward_pattern: ""              # streak-tracking | milestone-celebration | none
+
+strengths:
+  strong_areas: []                # e.g., ["business strategy", "product management"]
+  weak_areas: []                  # e.g., ["math fundamentals", "Python coding"]
+
+preferences:
+  question_style: ""              # socratic | direct | mixed
+  feedback_style: ""              # encouraging | blunt | balanced
+  example_preference: ""          # real-world | academic | mixed
+  substack_topics: []             # Keywords for Gmail Substack scanning

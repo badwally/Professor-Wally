@@ -1,0 +1,29 @@
+# Personal state (learner-specific, not shared)
+state/config/learner.yaml
+state/config/tools.yaml
+state/courses/_active.yaml
+state/progress/
+state/memory/
+state/journals/
+
+# Source materials (large files, copyrighted content)
+materials/
+
+# Generated output (reproducible from materials + workflows)
+output/
+
+# Workflow run artifacts
+workflows/runs/
+
+# OS files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/

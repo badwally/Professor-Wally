@@ -1,0 +1,38 @@
+# Course Configuration Template
+# Copy to courses/{course-id}/course.yaml and customize
+
+id: ""                            # Unique slug: "mit-ai-xpro", "agentic-ai-vp"
+name: ""                          # Display name: "MIT xPRO — Designing and Building AI Products"
+provider: ""                      # "MIT xPRO", "Self-authored", etc.
+version: ""                       # "2026-Q1"
+
+objectives:                       # Learning objectives for the full course
+  - text: ""                      # What the learner will be able to do
+    measurable: ""                # How achievement is measured
+    bloom_level: ""               # remember | understand | apply | analyze | evaluate | create
+
+success_criteria:                 # Definitions of success
+  - criterion: ""                 # e.g., "Score >= 80% on all mastery questions"
+    threshold: ""                 # Numeric threshold or description
+    module_scope: "all"           # "all" | specific module id
+
+materials_path: ""                # Relative path from repo root: "materials/mit-ai-xpro"
+
+modules:
+  - id: "01"
+    config: "modules/01-module-name.yaml"
+
+scoring:
+  passing_threshold: 0.70         # 70% minimum to pass
+  mastery_threshold: 0.90         # 90% for mastery designation
+  fluency_threshold: 0.80         # 80% to advance to next module
+  weights:
+    study_questions: 0.20
+    mastery_questions: 0.50
+    tutor_sessions: 0.30
+
+glossary: "glossary.yaml"         # Course-level glossary file
+
+# Optional MCP integration config
+substack_query: ""                # Gmail search for Substack: "from:substack.com subject:AI"
+notion_database_id: ""            # Notion database for notes sync

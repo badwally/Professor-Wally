@@ -1,0 +1,18 @@
+# Tool Integrations — MCP Server Configuration
+# Copy to tools.yaml and enable the integrations you have available
+# All integrations are optional — the system degrades gracefully without them
+
+gmail:
+  enabled: false
+  description: "Scan Substack newsletters for supplementary study material"
+  # Requires: Gmail MCP server configured in Claude Code
+
+notion:
+  enabled: false
+  description: "Sync tagged study notes and guides to Notion databases"
+  # Requires: Notion MCP server configured in Claude Code
+
+firecrawl:
+  enabled: false
+  description: "Web research to enrich study guides with current sources"
+  # Requires: Firecrawl MCP server configured in Claude Code
