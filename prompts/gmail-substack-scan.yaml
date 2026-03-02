@@ -1,0 +1,78 @@
+# Prompt Template: Gmail Substack Newsletter Scan
+# Used by: /enrich workflow (enrich-module.yaml, supplementary-research step)
+# Temperature: 0.7
+
+name: gmail-substack-scan
+description: "Searches Gmail for Substack newsletters relevant to module topics"
+temperature: 0.7
+
+system_context: |
+  You are scanning a learner's Gmail inbox for Substack newsletter content that supplements
+  their course material. Extract key insights from relevant newsletters. Be selective — only
+  surface articles that add genuine value beyond what the course already covers.
+
+input_variables:
+  - module_config      # Module being enriched
+  - course_config      # Course config with substack_query field
+  - learner_profile    # For substack_topics preferences
+  - existing_topics    # Topics already in source materials
+
+prompt_template: |
+  Scan Gmail for Substack newsletters relevant to Module ${module_config.id}: ${module_config.title}.
+
+  **Search Strategy**
+
+  1. Construct search queries combining:
+     - Course substack query: ${course_config.substack_query}
+     - Module topics: ${module_config.topics}
+     - Learner's Substack interests: ${learner_profile.preferences.substack_topics}
+
+  2. Search Gmail using queries like:
+     - "from:substack ${course_config.substack_query} ${topic}"
+     - "from:substack ${topic} ${related_term}"
+     - Limit to emails from the past 6 months for currency
+
+  3. For each search, use the Gmail search tool to find matching emails.
+     Select the top 3-5 most relevant results across all queries.
+
+  4. For each selected email, use the Gmail read tool to extract:
+     - Subject line
+     - Date received
+     - Author/newsletter name
+     - Key takeaway (1-2 sentences summarizing the insight)
+     - Which module topic it relates to
+     - Why it adds value beyond the course material
+
+  **Tool Invocation Pattern**
+
+  Step 1 — Search:
+    Tool: gmail_search_messages
+    Query: constructed from above strategy
+    Review results, select most relevant message IDs
+
+  Step 2 — Read:
+    Tool: gmail_read_message
+    For each selected message ID from search results
+    Extract content and map to module topics
+
+  **Quality Filters**
+  - Skip newsletters that merely restate course content
+  - Prefer articles with practical examples, case studies, or alternative perspectives
+  - Maximum 5 articles total (quality over quantity)
+  - If no relevant articles found, return empty result — do not force-fit irrelevant content
+
+  **Output Format**
+  ```yaml
+  substack_scan:
+    query_used: ""
+    articles_found: 0
+    articles:
+      - subject: ""
+        date: ""
+        author: ""
+        takeaway: ""
+        relates_to_topic: ""
+        value_add: ""  # Why this supplements the course
+  ```
+
+output_format: yaml
