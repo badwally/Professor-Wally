@@ -242,3 +242,32 @@ steps:
       type: text
       key: summary
     gate: display
+
+  - name: sync-to-notion
+    executor: prompt
+    optional: true  # Skipped if Notion not enabled
+    reads: [state/config/tools.yaml, prompts/notion-sync.yaml]
+    prompt: |
+      Sync session summary to Notion.
+      Load tools.yaml to check if notion.enabled is true.
+
+      **If notion.enabled: true AND notion.database_id is set:**
+      Follow the notion-sync.yaml prompt template with sync_type: "session-summary".
+
+      1. Create a session summary page (no duplicate check needed — each session is unique):
+         Tool: notion_create_pages
+         Database: ${notion.database_id}
+         Title: "Module ${module-id}: Session Summary — ${timestamp}"
+         Properties: course, module, type (session-summary), composite score, status
+         Body: session results including scores, gaps, and recommendations
+
+      2. If a study guide page exists for this module, add a link to it.
+
+      **If notion.enabled: false or database_id not set:**
+      Skip silently — no message needed since session-summary already displayed.
+    input:
+      summary: ${session-summary.summary}
+      scores: ${compute-scores.scores}
+    output:
+      type: text
+      key: notion_sync
