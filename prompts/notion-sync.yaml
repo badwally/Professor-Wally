@@ -1,0 +1,98 @@
+# Prompt Template: Notion Page Sync
+# Used by: /enrich workflow (sync-to-notion step) and /study workflow (optional sync)
+# Temperature: 0.3 (deterministic — sync operations should be consistent)
+
+name: notion-sync
+description: "Creates or updates Notion pages for study guides and session summaries"
+temperature: 0.3
+
+system_context: |
+  You are syncing study materials to Notion. Be precise with page creation and updates.
+  Always check for existing pages before creating new ones to avoid duplicates.
+  Structure pages cleanly with proper headings and metadata.
+
+input_variables:
+  - sync_type          # "study-guide" | "session-summary"
+  - course_config      # Course config for metadata
+  - module_config      # Module config for metadata
+  - content            # Markdown content to sync
+  - database_id        # Target Notion database ID from tools.yaml
+
+templates:
+  study_guide:
+    title: "Module ${module_config.id}: ${module_config.title} — Study Guide"
+    properties:
+      course: "${course_config.name}"
+      module: "${module_config.id}"
+      type: "study-guide"
+      generated: "${timestamp}"
+    content: "${content}"
+
+  session_summary:
+    title: "Module ${module_config.id}: Session Summary — ${timestamp}"
+    properties:
+      course: "${course_config.name}"
+      module: "${module_config.id}"
+      type: "session-summary"
+      composite_score: "${scores.composite}"
+      status: "${scores.status_label}"
+    content: "${content}"
+
+prompt_template: |
+  Sync content to Notion for Module ${module_config.id}: ${module_config.title}.
+
+  **Sync Type:** ${sync_type}
+
+  **Duplicate Detection**
+
+  Before creating a new page:
+  1. Search Notion for existing pages with matching title
+     Tool: notion_search
+     Query: title of the page being created
+  2. If a matching page exists:
+     - Update the existing page instead of creating a new one
+     - Tool: notion_update_page
+     - Preserve the page ID for linking
+  3. If no matching page exists:
+     - Create a new page
+     - Tool: notion_create_pages
+
+  **Page Creation / Update**
+
+  For study-guide sync:
+    Title: "Module ${module_config.id}: ${module_config.title} — Study Guide"
+    Properties: course, module, type (study-guide), generated date
+    Body: The full study guide markdown content
+
+  For session-summary sync:
+    Title: "Module ${module_config.id}: Session Summary — ${timestamp}"
+    Properties: course, module, type (session-summary), composite score, status
+    Body: Session results, scores, gaps, recommendations
+
+  **Tool Invocation Pattern**
+
+  Step 1 — Check for duplicates:
+    Tool: notion_search
+    Query: page title
+
+  Step 2a — Update existing page (if found):
+    Tool: notion_update_page
+    Page ID: from search results
+    Content: updated markdown
+
+  Step 2b — Create new page (if not found):
+    Tool: notion_create_pages
+    Database ID: ${database_id}
+    Title and properties from template above
+    Content: markdown body
+
+  **Output Format**
+  ```yaml
+  notion_sync:
+    action: "created" | "updated" | "skipped"
+    page_title: ""
+    page_url: ""  # Notion page URL if available
+    reason: ""    # If skipped, why
+  ```
+
+output_format: yaml
