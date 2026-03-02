@@ -33,6 +33,7 @@ steps:
 
   - name: execute-search
     executor: prompt
+    # Not optional — /research requires Firecrawl; returns error message if disabled
     reads: [state/config/tools.yaml]
     prompt: |
       Execute web research.
@@ -104,11 +105,14 @@ steps:
     optional: true
     reads: [state/config/tools.yaml, prompts/notion-sync.yaml]
     prompt: |
-      If Notion is enabled (notion.enabled: true in tools.yaml):
+      **If notion.enabled: true AND notion.database_id is set:**
       - Use notion_create_pages to create a page
       - Database: ${notion.database_id}
       - Tags/properties: type (research), topic (${topic}), course (${course-id})
       - Body: the research note markdown content
+
+      **If notion.enabled: false or database_id not set:**
+      Skip Notion sync — not configured.
 
       Report to learner:
       - Research note location
