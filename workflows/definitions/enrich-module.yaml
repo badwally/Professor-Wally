@@ -64,20 +64,40 @@ steps:
   - name: supplementary-research
     executor: prompt
     optional: true  # Skipped if Firecrawl/Gmail not enabled
-    reads: [state/config/tools.yaml, prompts/enrichment.yaml]
+    reads: [state/config/tools.yaml, prompts/enrichment.yaml, prompts/gmail-substack-scan.yaml]
     prompt: |
-      If Firecrawl is enabled: Search for 3-5 supplementary sources per major topic.
-      If Gmail is enabled: Scan for relevant Substack articles.
+      Gather supplementary material from available external sources.
+      Load tools.yaml to check which integrations are enabled.
 
-      Follow the enrichment.yaml prompt template for search strategy.
+      **1. Web Research (if firecrawl.enabled: true)**
+      Follow the enrichment.yaml prompt template's "Web Search (Firecrawl)" section.
+      Invoke the firecrawl:firecrawl-cli skill for each search query.
+      Search queries per topic:
+      - "${topic} explained" for foundational understanding
+      - "${topic} applications ${current_year}" for currency
+      - "${topic} vs ${alternative}" for comparative understanding
+      Select 3-5 best sources per topic with relevance scoring.
+
+      **2. Substack Scan (if gmail.enabled: true)**
+      Follow the gmail-substack-scan.yaml prompt template.
+      Use gmail_search_messages to find newsletters matching:
+      - Course substack_query + module topic keywords
+      - Learner's substack_topics preferences
+      Use gmail_read_message to extract content from top 3-5 results.
+      Map each article to module topics.
+
+      **3. Dynamic Topic Discovery**
+      If research surfaces important related topics NOT in the module config:
+      - Flag as "Discovered Topic" with relevance and suggested placement
+      - Do NOT add entire new sections
+
+      **If neither tool is enabled**, skip with empty output — this is normal.
 
       Quality filters:
       - Recent (within 2 years unless foundational)
-      - Authoritative (.edu, known experts, major publications)
+      - Authoritative (.edu, major publications, recognized experts)
       - Adds perspective not already in course materials
       - Maximum 5 sources per topic
-
-      If neither tool is enabled, skip this step with empty output.
     input:
       outline: ${load-source-materials.source_outline}
     output:
@@ -177,16 +197,33 @@ steps:
   - name: sync-to-notion
     executor: prompt
     optional: true  # Skipped if Notion not enabled
+    reads: [state/config/tools.yaml, prompts/notion-sync.yaml]
     prompt: |
-      If Notion is enabled in tools.yaml:
-      1. Create a Notion page for the study guide with tags:
-         - Course: ${course-id}
-         - Module: ${module-id}
-         - Type: study-guide
-      2. Include the study guide content in markdown format
-      3. Add a link back to the local file path
+      Sync the generated study guide to Notion.
+      Load tools.yaml to check if notion.enabled is true.
 
-      If Notion is not enabled, skip with message "Notion sync skipped — not configured."
+      **If notion.enabled: true AND notion.database_id is set:**
+      Follow the notion-sync.yaml prompt template with sync_type: "study-guide".
+
+      1. Search for existing page:
+         Tool: notion_search
+         Query: "Module ${module-id}: ${module_title} — Study Guide"
+
+      2. If page exists → update it:
+         Tool: notion_update_page
+         Update content with latest study guide markdown
+
+      3. If page does not exist → create it:
+         Tool: notion_create_pages
+         Database: ${notion.database_id}
+         Title: "Module ${module-id}: ${module_title} — Study Guide"
+         Properties: course, module, type (study-guide), generated date
+         Body: study guide markdown content
+
+      4. Report sync result (created/updated/skipped + page URL)
+
+      **If notion.enabled: false or database_id not set:**
+      Skip with message "Notion sync skipped — not configured."
     input:
       study_guide: ${generate-study-guide.study_guide}
     output:
