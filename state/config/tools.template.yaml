@@ -5,14 +5,34 @@
 gmail:
   enabled: false
   description: "Scan Substack newsletters for supplementary study material"
-  # Requires: Gmail MCP server configured in Claude Code
+  tools:
+    search: "gmail_search_messages"   # Search emails by query
+    read: "gmail_read_message"        # Read full email content
+  usage_notes: |
+    Requires a Gmail MCP server configured in Claude Code.
+    Used by /enrich to scan Substack newsletters matching course topics.
+    Claude will match these generic names to the available Gmail MCP tools at runtime.
 
 notion:
   enabled: false
   description: "Sync tagged study notes and guides to Notion databases"
-  # Requires: Notion MCP server configured in Claude Code
+  database_id: ""  # Set to your Notion database ID for study materials
+  tools:
+    search: "notion_search"           # Search for existing pages
+    create: "notion_create_pages"     # Create new pages
+    update: "notion_update_page"      # Update existing pages
+    fetch: "notion_fetch"             # Fetch page content
+  usage_notes: |
+    Requires a Notion MCP server configured in Claude Code.
+    Used by /enrich to sync study guides and by /study to sync session summaries.
+    Set database_id to target a specific Notion database.
+    Claude will match these generic names to the available Notion MCP tools at runtime.
 
 firecrawl:
   enabled: false
   description: "Web research to enrich study guides with current sources"
-  # Requires: Firecrawl MCP server configured in Claude Code
+  skill_name: "firecrawl:firecrawl-cli"
+  usage_notes: |
+    Requires the Firecrawl skill installed and configured.
+    Used by /enrich for supplementary web research and /research for deep dives.
+    Invoke via the firecrawl:firecrawl-cli skill, not as a direct MCP tool.
