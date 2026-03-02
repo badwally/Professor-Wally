@@ -33,9 +33,20 @@ steps:
 
   - name: execute-search
     executor: prompt
+    reads: [state/config/tools.yaml]
     prompt: |
-      Execute web research using Firecrawl:
+      Execute web research.
+      Load tools.yaml to check if firecrawl.enabled is true.
 
+      **If firecrawl.enabled: true:**
+      Invoke the firecrawl:firecrawl-cli skill for each search query.
+
+      **If firecrawl.enabled: false:**
+      Report: "Web research unavailable — Firecrawl not configured.
+      Enable Firecrawl in tools.yaml to use /research."
+      Return empty results.
+
+      **Research execution (when enabled):**
       For each search query:
       1. Search and collect top 3-5 results
       2. For each result, extract:
@@ -91,9 +102,13 @@ steps:
   - name: sync-and-report
     executor: prompt
     optional: true
+    reads: [state/config/tools.yaml, prompts/notion-sync.yaml]
     prompt: |
-      If Notion is enabled:
-      - Create Notion page with tags: research, ${topic}, ${course-id}
+      If Notion is enabled (notion.enabled: true in tools.yaml):
+      - Use notion_create_pages to create a page
+      - Database: ${notion.database_id}
+      - Tags/properties: type (research), topic (${topic}), course (${course-id})
+      - Body: the research note markdown content
 
       Report to learner:
       - Research note location
