@@ -60,7 +60,7 @@ Fluency threshold to advance: **0.80 (Proficient)**
 
 ## Architecture
 
-Adapted from the [chief-of-staff](https://github.com/andrewgrant/chief-of-staff) 4-layer pattern:
+Adapted from the [chief-of-staff](https://github.com/badwally/chief-of-staff) 4-layer pattern:
 
 ```
 L3: Interface    — Skills (/study, /quiz, /tutor, etc.)
