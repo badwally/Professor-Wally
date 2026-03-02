@@ -32,6 +32,8 @@ prompt_template: |
   **Research Strategy**
 
   1. **Web Search (Firecrawl)**
+     Invoke the firecrawl:firecrawl-cli skill for web research.
+     Check tools.yaml — only proceed if firecrawl.enabled is true.
      For each major topic, search for:
      - Recent authoritative articles (prefer .edu, major publications, known experts)
      - Practical applications and case studies
@@ -51,7 +53,9 @@ prompt_template: |
      - Relevance score (1-5)
 
   2. **Substack Scanning (Gmail MCP)**
-     If enabled, search for newsletters matching:
+     Check tools.yaml — only proceed if gmail.enabled is true.
+     Use gmail_search_messages and gmail_read_message tools.
+     Search for newsletters matching:
      - Course-related keywords: ${learner_profile.preferences.substack_topics}
      - Module-specific terms from ${module_config.topics}
 
