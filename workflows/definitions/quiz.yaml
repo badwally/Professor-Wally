@@ -1,0 +1,147 @@
+# Workflow: Standalone Quiz
+# Triggered by: /quiz [module|cumulative]
+# Pure assessment — evaluative only, not instructional
+
+name: quiz
+description: "Standalone scored quiz with immediate feedback and progress tracking"
+version: "1.0"
+
+context:
+  policies: [scoring-rubric, anti-pattern-guards, context-discipline]
+  memory_scopes: [learner]
+  indexes: [concepts]
+
+steps:
+  - name: configure-quiz
+    executor: prompt
+    prompt: |
+      Configure the quiz based on arguments:
+
+      **Scope**: ${args.scope} — "module" (single module) or "cumulative" (all completed modules)
+
+      **Question Selection Strategy:**
+      1. Load progress.yaml to identify:
+         - Low-score topics (prioritize these)
+         - SRS-due items (include 2-3 as recall warm-up)
+         - Bloom levels with lowest scores (weight these)
+      2. For cumulative quizzes: interleave questions across modules
+         - Recent modules get more questions
+         - Weak modules get more questions
+         - At least 1 question per completed module
+      3. Select question mix:
+         - 60% from question banks (study + mastery)
+         - 40% newly generated (to prevent memorization)
+      4. Total questions: 15-20 for module, 25-30 for cumulative
+
+      Present quiz plan: scope, question count, estimated time.
+    input:
+      scope: ${args.scope}
+      module_id: ${args.module}
+    output:
+      type: text
+      key: quiz_config
+    gate: confirm
+
+  - name: administer-quiz
+    executor: prompt
+    reads: [prompts/scoring.yaml]
+    prompt: |
+      Administer the quiz one question at a time:
+
+      For each question:
+      1. Display question number, Bloom level indicator, and topic tag
+      2. Present the question
+      3. Wait for learner's response
+      4. Score immediately using scoring.yaml template (temperature: 0.3)
+      5. Provide feedback:
+         - Correct: brief confirmation + one reinforcing insight
+         - Incorrect: explain the correct answer + why their answer was wrong
+         - Partial (mastery): acknowledge what was right, specify what's missing
+      6. Record result
+
+      **Pacing:**
+      - No time limit per question (learner works at their pace)
+      - After every 5 questions: show running score
+      - If learner requests break: save state and allow resume
+
+      **Anti-patterns to avoid:**
+      - Don't give hints during quiz (this is assessment, not tutoring)
+      - Don't soften incorrect answers — be accurate about what's wrong
+      - Don't ask "are you ready for the next question?" — just present it
+    input:
+      config: ${configure-quiz.quiz_config}
+    output:
+      type: text
+      key: quiz_responses
+
+  - name: score-quiz
+    executor: prompt
+    reads: [policies/scoring-rubric.md]
+    prompt: |
+      Compute quiz scores:
+
+      **Overall**: correct / total (percentage)
+
+      **Per-Bloom Level**: score at each level tested
+      **Per-Topic**: score for each topic represented
+      **Per-Module**: score by module (cumulative quizzes only)
+
+      **Status**: Below Passing (<0.70) | Passing (0.70-0.79) | Proficient (0.80-0.89) | Mastery (>=0.90)
+
+      **Comparison**: Compare to most recent quiz on same scope
+      - Improved / Stable / Declined
+
+      **Gaps**: List topics and Bloom levels where score < 0.70
+    input:
+      responses: ${administer-quiz.quiz_responses}
+    output:
+      type: text
+      key: quiz_scores
+
+  - name: update-progress
+    executor: prompt
+    prompt: |
+      Update state from quiz results:
+
+      1. **progress.yaml**: Update module scores with quiz results
+         - If quiz score > existing module score: update
+         - If quiz score < existing: keep higher score (don't penalize)
+      2. **spaced-repetition.yaml**: Add incorrectly-answered items as SRS entries
+      3. **session-log.yaml**: Append quiz session entry
+
+      Write quiz report to: output/${course-id}/quiz-results/quiz-${timestamp}.md
+    input:
+      scores: ${score-quiz.quiz_scores}
+    output:
+      type: file
+      key: progress_updated
+      path: state/progress/${course-id}/
+
+  - name: quiz-summary
+    executor: prompt
+    prompt: |
+      Present quiz results:
+
+      **Quiz Complete**
+      - Scope: ${scope}
+      - Score: ${correct}/${total} (${percentage}%) — ${status_label}
+      - Time: ${elapsed} minutes
+
+      **Performance by Bloom Level**
+      (show only levels with >= 2 questions)
+
+      **Gaps to Address**
+      ${gaps_list}
+
+      **Recommendation**
+      - If below passing: "Run `/study ${module}` focusing on: ${weak_topics}"
+      - If passing but not proficient: "Solid foundation. Target: ${specific_areas}"
+      - If proficient+: "Strong performance. Consider `/quiz cumulative` or advancing."
+
+      Keep under 15 lines.
+    input:
+      scores: ${score-quiz.quiz_scores}
+    output:
+      type: text
+      key: summary
+    gate: display

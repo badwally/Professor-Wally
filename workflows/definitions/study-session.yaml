@@ -1,0 +1,231 @@
+# Workflow: Interactive Study Session
+# Triggered by: /study [module] or /tutor [module]
+# The main learning loop — section-by-section guided study
+
+name: study-session
+description: "Interactive guided study session with active recall, scoring, and SRS integration"
+version: "1.0"
+
+context:
+  policies: [pedagogical-approach, scoring-rubric, spaced-repetition, context-discipline, anti-pattern-guards]
+  memory_scopes: [learner]
+  indexes: [concepts, glossary-index]
+
+modes:
+  standard:
+    description: "Guided study with questions and scoring"
+    emphasis: [active-recall, study-questions, mastery-questions]
+  socratic:
+    description: "Deep understanding through Socratic questioning"
+    emphasis: [elaborative-interrogation, teach-back, concrete-examples, interleaving]
+
+steps:
+  - name: assess-state
+    executor: prompt
+    prompt: |
+      Determine session type by loading all relevant state:
+
+      1. Load progress.yaml — which modules are complete, in-progress, or not-started
+      2. Load spaced-repetition.yaml — are any SRS items due today?
+      3. Load session-log.yaml — when was the last session? what was the checkpoint?
+      4. Load learner.yaml — session length preference, learning style
+      5. Load memory.yaml — any learner insights from prior sessions
+
+      **Decision Logic:**
+      - If SRS items are due (next_review <= today): start with SRS review
+      - If a checkpoint exists for this module: resume from that section
+      - If module arg provided: study that module
+      - If no module arg: auto-select based on progress
+        - If current module incomplete: continue it
+        - If current module complete: suggest next module
+        - If all modules complete: suggest review or re-study weakest
+
+      **Session Planning:**
+      - Calculate available time from learner.preferred_session_length
+      - Estimate sections to cover based on time
+      - Plan SRS review (if due) + section study + scoring
+
+      Report the session plan to the learner before starting.
+    input:
+      module_id: ${args.module}
+      mode: ${args.mode}  # "standard" or "socratic"
+    output:
+      type: text
+      key: session_plan
+    gate: confirm
+
+  - name: srs-review
+    executor: prompt
+    optional: true  # Only if SRS items are due
+    reads: [policies/spaced-repetition.md]
+    prompt: |
+      Conduct spaced repetition review for due items.
+
+      1. Load items from spaced-repetition.yaml where next_review <= today
+      2. Cap at 20 items per session (policy)
+      3. For each item:
+         a. Present the "front" (question/prompt)
+         b. Wait for learner's response
+         c. Reveal the "back" (answer)
+         d. Ask learner to self-rate recall quality (0-5):
+            0 = Complete blackout
+            1 = Incorrect, but recognized answer when shown
+            2 = Incorrect, but answer felt familiar
+            3 = Correct with significant difficulty
+            4 = Correct with some hesitation
+            5 = Perfect, instant recall
+         e. Update interval using SM2 algorithm:
+            - If quality >= 3: increase interval
+            - If quality < 3: reset to 1 day
+            - Adjust ease factor
+
+      4. Save updated SRS state
+      5. Report: items reviewed, average quality, items needing re-review soon
+
+      Keep pace brisk — SRS review should take 5-10 minutes max.
+    input:
+      session_plan: ${assess-state.session_plan}
+    output:
+      type: text
+      key: srs_results
+
+  - name: section-study-loop
+    executor: prompt
+    reads: [prompts/tutoring.yaml, prompts/scoring.yaml]
+    prompt: |
+      For each section of the enriched study guide (respecting checkpoint if resuming):
+
+      **STANDARD MODE:**
+      1. Present section digest (key concepts, 2-3 paragraphs)
+      2. Active recall: "Before I explain further, what do you already know about [topic]?"
+      3. Fill in gaps based on their response
+      4. Study questions for this section:
+         - Present one at a time
+         - Wait for response
+         - Score immediately (binary: correct/incorrect)
+         - Provide brief feedback
+         - If incorrect: provide hint, allow retry once
+      5. Mastery questions for this section (if applicable):
+         - Present the question
+         - Wait for written response
+         - Score using 5-dimension rubric (accuracy, depth, connections, examples, clarity)
+         - Provide detailed feedback adapted to learner's feedback_style
+      6. Section score displayed
+
+      **SOCRATIC MODE (in addition to standard):**
+      - Elaborative interrogation: "Why does this work?" at every major concept
+      - Teach-back: "Explain [concept] as if teaching a colleague"
+      - Concrete examples: "Give me a real-world example of [concept]"
+      - Cross-module interleaving: "How does this connect to [prior module concept]?"
+      - Rate tutor interaction on 5 dimensions (recall, understanding, application, integration, teaching)
+
+      **CHECKPOINT:**
+      After each section, save progress:
+      ```yaml
+      checkpoint:
+        module_id: "${module}"
+        section_index: ${current_section}
+        timestamp: "${now}"
+        sections_completed: ${count}
+        sections_remaining: ${count}
+      ```
+
+      **PACING:**
+      - Check elapsed time against session_length preference
+      - If approaching limit: ask whether to continue or save checkpoint
+      - Never cut off mid-question — finish the current question first
+    input:
+      session_plan: ${assess-state.session_plan}
+      srs_results: ${srs-review.srs_results}
+    output:
+      type: text
+      key: section_results
+
+  - name: compute-scores
+    executor: prompt
+    reads: [policies/scoring-rubric.md]
+    prompt: |
+      Compute session scores:
+
+      **Per-Section Scores:**
+      - Study question accuracy: correct / total
+      - Mastery question score: average of rubric dimensions (normalized to 0-1)
+      - Tutor interaction score: average of 5 dimensions / 100 (socratic mode only)
+
+      **Module Composite Score:**
+      composite = (study_questions * 0.20) + (mastery_questions * 0.50) + (tutor_sessions * 0.30)
+
+      **Bloom Breakdown:**
+      - Score per Bloom level across all questions answered this session
+
+      **Gaps Identified:**
+      - Topics where score < 0.70 (below passing)
+      - Specific Bloom levels that are weak
+
+      **Trend:**
+      - Compare to last 3 sessions for this module
+      - improving (>= +5%), stable, declining (>= -5%)
+    input:
+      results: ${section-study-loop.section_results}
+    output:
+      type: text
+      key: scores
+
+  - name: update-state
+    executor: prompt
+    prompt: |
+      Update all state files:
+
+      1. **progress.yaml**: Update module scores, status, gaps, last_session timestamp
+         - Status logic:
+           - composite >= fluency_threshold → "complete"
+           - composite >= passing_threshold → "in-progress" (passing but not fluent)
+           - composite < passing_threshold → "in-progress" (needs work)
+
+      2. **spaced-repetition.yaml**: Add new SRS items from incorrectly-answered questions
+
+      3. **session-log.yaml**: Append session entry with full results
+
+      4. **memory.yaml**: Record any learner insights discovered:
+         - Patterns in what they struggle with
+         - Effective teaching techniques for this learner
+         - Concepts that clicked vs. didn't
+
+      5. **Checkpoint**: Clear if module section is complete; save if interrupted
+    input:
+      scores: ${compute-scores.scores}
+    output:
+      type: file
+      key: state_updated
+      path: state/progress/${course-id}/
+
+  - name: session-summary
+    executor: prompt
+    prompt: |
+      Present end-of-session summary:
+
+      **Session Results**
+      - Sections covered: ${n} of ${total}
+      - Study questions: ${correct}/${total} (${percentage}%)
+      - Mastery score: ${score} (${status_label})
+      - Tutor score: ${score} (socratic mode only)
+      - Composite: ${composite} — ${status_label}
+
+      **Bloom Performance**
+      - Strongest: ${level} (${score}%)
+      - Weakest: ${level} (${score}%)
+
+      **Decision Gate**
+      - Below fluency (< 0.80): "Recommend re-studying: ${weak_topics}. Run /study ${module} to continue."
+      - At fluency (>= 0.80): "Module ${module} complete! Run /study ${next_module} or /enrich ${next_module} first."
+      - SRS items seeded: "${n} new items added for review"
+      - Next SRS review: "${date}"
+
+      Keep under 15 lines. Be direct about what to do next.
+    input:
+      scores: ${compute-scores.scores}
+      state: ${update-state.state_updated}
+    output:
+      type: text
+      key: summary
+    gate: display

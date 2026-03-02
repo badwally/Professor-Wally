@@ -1,0 +1,222 @@
+# Workflow: Enrich Module
+# Triggered by: /enrich <module> [--force]
+# Generates enriched study guide + question banks from source materials
+
+name: enrich-module
+description: "Generate enriched study guide, study questions, and mastery questions for a module"
+version: "1.0"
+
+context:
+  policies: [pedagogical-approach, scoring-rubric, context-discipline, anti-pattern-guards]
+  memory_scopes: [learner]
+  indexes: [concepts, glossary-index]
+
+incremental: true  # Skip if study guide already exists, unless --force
+
+temperature_defaults:
+  study_guide_gen: 0.6
+  question_gen: 0.5
+  enrichment_research: 0.7
+
+steps:
+  - name: check-prerequisites
+    executor: prompt
+    prompt: |
+      Verify module is ready for enrichment:
+
+      1. Load course config and module config for module ${args.module}
+      2. Check that source materials exist (study_guide path populated)
+      3. If no study guide exists, report: "Module ${args.module} has no study guide.
+         Place materials in the materials directory and re-run /ingest, or create
+         a study guide manually."
+      4. Check if enriched output already exists:
+         - output/${course-id}/study-guides/module-${nn}-study-guide.md
+         - output/${course-id}/questions/module-${nn}-study-questions.md
+         If yes and --force not set: skip with message "Already enriched. Use --force to regenerate."
+      5. Load learner profile for personalization
+    input:
+      module_id: ${args.module}
+      force: ${args.force}
+    output:
+      type: text
+      key: prerequisites
+    gate: confirm  # Only if issues found
+
+  - name: load-source-materials
+    executor: prompt
+    prompt: |
+      Load the source materials for module ${args.module}:
+
+      1. Read the primary study guide (markdown file)
+      2. Note transcript file paths (don't load PDFs into context — just reference them)
+      3. Note quick reference guide path
+      4. Load module config for topics, learning outcomes, and key terms
+      5. Load course glossary for term definitions
+
+      CONTEXT DISCIPLINE: Read the study guide section-by-section, not all at once.
+      Extract a structured outline with key concepts per section.
+    input:
+      prerequisites: ${check-prerequisites.prerequisites}
+    output:
+      type: text
+      key: source_outline
+
+  - name: supplementary-research
+    executor: prompt
+    optional: true  # Skipped if Firecrawl/Gmail not enabled
+    reads: [state/config/tools.yaml, prompts/enrichment.yaml]
+    prompt: |
+      If Firecrawl is enabled: Search for 3-5 supplementary sources per major topic.
+      If Gmail is enabled: Scan for relevant Substack articles.
+
+      Follow the enrichment.yaml prompt template for search strategy.
+
+      Quality filters:
+      - Recent (within 2 years unless foundational)
+      - Authoritative (.edu, known experts, major publications)
+      - Adds perspective not already in course materials
+      - Maximum 5 sources per topic
+
+      If neither tool is enabled, skip this step with empty output.
+    input:
+      outline: ${load-source-materials.source_outline}
+    output:
+      type: text
+      key: supplementary
+
+  - name: generate-study-guide
+    executor: prompt
+    reads: [prompts/study-guide-gen.yaml]
+    prompt: |
+      Generate the enriched study guide following the study-guide-gen.yaml template.
+
+      Temperature: 0.6
+
+      Structure:
+      1. Big Picture opening — connects to prior and future modules
+      2. Per-topic sections with:
+         - Key concept summary
+         - "Why it matters" connection to objectives
+         - Active recall prompt
+         - Concrete example (adapted to learner preferences)
+         - Key terms with definitions
+         - Cross-references
+      3. "Beyond the Course" section (if supplementary research available)
+      4. Self-Check section (5 key questions)
+
+      Write output to: output/${course-id}/study-guides/module-${nn}-study-guide.md
+    input:
+      outline: ${load-source-materials.source_outline}
+      supplementary: ${supplementary-research.supplementary}
+    output:
+      type: file
+      key: study_guide
+      path: output/${course-id}/study-guides/module-${nn}-study-guide.md
+
+  - name: generate-questions
+    executor: prompt
+    reads: [prompts/question-gen.yaml]
+    prompt: |
+      Generate two question sets following the question-gen.yaml template.
+
+      Temperature: 0.5
+
+      SET 1 — Study Questions (15-20):
+      - Bloom distribution: Remember 30%, Understand 40%, Apply 20%, Analyze 10%
+      - Short-answer format, binary scoring
+      - Include hints and SRS candidates
+
+      SET 2 — Mastery Questions (8-12):
+      - Bloom distribution: Apply 25%, Analyze 30%, Evaluate 25%, Create 20%
+      - Written response format, rubric scoring
+      - Ascending difficulty
+      - At least 2 cross-module questions if prerequisites exist
+
+      Single-pass generation: generate and validate in one pass (no generate → review → regenerate loops).
+
+      Write outputs to:
+      - output/${course-id}/questions/module-${nn}-study-questions.md
+      - output/${course-id}/questions/module-${nn}-mastery-questions.md
+    input:
+      study_guide: ${generate-study-guide.study_guide}
+    output:
+      type: file
+      key: questions
+      path: output/${course-id}/questions/
+
+  - name: seed-srs-queue
+    executor: prompt
+    prompt: |
+      Extract SRS-candidate items from generated questions and seed the spaced repetition queue.
+
+      For each question marked srs_candidate: true:
+      1. Create an SRS item:
+         ```yaml
+         - id: "srs-{module}-{nn}"
+           front: "<question text>"
+           back: "<expected answer>"
+           bloom_level: "<level>"
+           module_id: "${module}"
+           topic: "<topic>"
+           interval_days: 1
+           ease_factor: 2.5
+           repetitions: 0
+           next_review: "${today}"
+           history: []
+         ```
+      2. Append to state/progress/${course-id}/spaced-repetition.yaml
+
+      Do NOT overwrite existing SRS items — only add new ones.
+    input:
+      questions: ${generate-questions.questions}
+    output:
+      type: file
+      key: srs_updates
+      path: state/progress/${course-id}/spaced-repetition.yaml
+
+  - name: sync-to-notion
+    executor: prompt
+    optional: true  # Skipped if Notion not enabled
+    prompt: |
+      If Notion is enabled in tools.yaml:
+      1. Create a Notion page for the study guide with tags:
+         - Course: ${course-id}
+         - Module: ${module-id}
+         - Type: study-guide
+      2. Include the study guide content in markdown format
+      3. Add a link back to the local file path
+
+      If Notion is not enabled, skip with message "Notion sync skipped — not configured."
+    input:
+      study_guide: ${generate-study-guide.study_guide}
+    output:
+      type: text
+      key: notion_sync
+
+  - name: enrich-summary
+    executor: prompt
+    prompt: |
+      Report enrichment results:
+
+      **Module ${args.module}**: ${module_title}
+      **Study Guide**: ✓ Generated (output path)
+      **Study Questions**: ${count} questions (Bloom distribution)
+      **Mastery Questions**: ${count} questions (difficulty range)
+      **SRS Items Seeded**: ${count} new items
+      **Supplementary Sources**: ${count} sources found (or "skipped — tools not configured")
+      **Notion Sync**: ✓ Synced / Skipped
+
+      **Next Steps**:
+      - Run `/study ${args.module}` to begin studying
+      - Run `/enrich ${next_module}` to prepare the next module
+
+      Keep under 12 lines.
+    input:
+      study_guide: ${generate-study-guide.study_guide}
+      questions: ${generate-questions.questions}
+      srs: ${seed-srs-queue.srs_updates}
+      notion: ${sync-to-notion.notion_sync}
+    output:
+      type: text
+      key: summary
+    gate: display

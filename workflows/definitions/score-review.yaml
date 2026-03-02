@@ -1,0 +1,136 @@
+# Workflow: Score Review
+# Triggered by: /score [module|all]
+# Generates scorecard with actionable recommendations
+
+name: score-review
+description: "Comprehensive scorecard with per-module breakdown, trends, and recommendations"
+version: "1.0"
+
+context:
+  policies: [scoring-rubric, context-discipline]
+  memory_scopes: [learner]
+  indexes: []
+
+steps:
+  - name: load-progress
+    executor: prompt
+    prompt: |
+      Load all progress data:
+
+      1. progress.yaml — all module scores, statuses, gaps
+      2. session-log.yaml — session history for trend calculation
+      3. spaced-repetition.yaml — retention metrics
+      4. course.yaml — scoring thresholds and weights
+      5. learner.yaml — for personalized recommendations
+
+      Scope:
+      - ${args.scope} = module id → single module report
+      - ${args.scope} = "all" → full course scorecard
+      - No arg → active course, all modules
+    input:
+      scope: ${args.scope}
+    output:
+      type: text
+      key: progress_data
+
+  - name: compute-scorecard
+    executor: prompt
+    reads: [policies/scoring-rubric.md, workflows/schemas/score-report.yaml]
+    prompt: |
+      Compute the full scorecard following score-report.yaml schema:
+
+      **Per Module:**
+      - Composite score: (study * 0.20) + (mastery * 0.50) + (tutor * 0.30)
+      - Component scores (study, mastery, tutor)
+      - Bloom-level breakdown (score per level)
+      - Trend: compare last 3 sessions
+        - improving: score increased >= 5%
+        - stable: change < 5%
+        - declining: score decreased >= 5%
+      - Strongest/weakest topics
+      - Status: not-started | in-progress | complete | mastery
+
+      **Cumulative:**
+      - Modules completed vs. total
+      - Overall score (weighted average of module composites)
+      - Strongest/weakest topics across all modules
+      - SRS retention rate (items recalled correctly / items reviewed)
+      - SRS items active
+      - Total study hours (sum of session durations)
+      - Streak (consecutive days with sessions)
+
+      **Recommendations (ordered by priority):**
+      1. Modules below fluency threshold → re-study
+      2. Weak Bloom levels → targeted practice
+      3. SRS retention below 85% → more frequent reviews
+      4. Modules not started → next to enrich/study
+      5. All modules at mastery → celebrate + suggest advanced topics
+    input:
+      data: ${load-progress.progress_data}
+    output:
+      type: text
+      key: scorecard
+
+  - name: generate-report
+    executor: prompt
+    prompt: |
+      Write the score report as markdown:
+
+      # Score Report — ${course_name}
+      *Generated: ${timestamp}*
+
+      ## Course Overview
+      - Overall: ${score} (${status})
+      - Modules: ${completed}/${total} complete
+      - Study Hours: ${hours} | Streak: ${days} days
+
+      ## Module Breakdown
+      (table with module, score, status, trend)
+
+      ## Bloom Performance
+      (table or chart showing score per Bloom level)
+
+      ## Spaced Repetition
+      - Retention rate: ${rate}%
+      - Active items: ${count}
+      - Due today: ${due}
+
+      ## Recommendations
+      1. ${recommendation_1}
+      2. ${recommendation_2}
+      3. ${recommendation_3}
+
+      Write to: output/${course-id}/score-report.md
+    input:
+      scorecard: ${compute-scorecard.scorecard}
+    output:
+      type: file
+      key: report
+      path: output/${course-id}/score-report.md
+
+  - name: display-scorecard
+    executor: prompt
+    prompt: |
+      Display the scorecard to the learner in a concise format.
+
+      Use the computed scorecard but condense for display:
+      - Module table (5 columns max)
+      - Top 3 recommendations
+      - Next action suggestion
+
+      If single module scope: show detailed Bloom breakdown for that module.
+      If all modules: show summary table with trends.
+
+      End with a clear next action:
+      - "/study ${module}" for weak areas
+      - "/quiz cumulative" if all modules are proficient
+      - "/review" if SRS items are overdue
+      - "/enrich ${next}" if next module materials are available
+
+      Keep display under 20 lines.
+    input:
+      scorecard: ${compute-scorecard.scorecard}
+    output:
+      type: text
+      key: display
+    gate: display

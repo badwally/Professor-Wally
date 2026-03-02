@@ -1,0 +1,110 @@
+# Workflow: Research Augment
+# Triggered by: /research <topic>
+# Ad-hoc deep dive on a topic using Firecrawl
+
+name: research-augment
+description: "Deep web research on a specific topic, producing a research note with key insights"
+version: "1.0"
+
+context:
+  policies: [context-discipline, anti-pattern-guards]
+  memory_scopes: [learner]
+  indexes: [concepts, glossary-index]
+
+steps:
+  - name: define-research
+    executor: prompt
+    prompt: |
+      Define the research scope:
+
+      1. Topic: ${args.topic}
+      2. Check which module(s) this topic relates to (via concepts index)
+      3. Load what the course already covers on this topic
+      4. Identify gaps — what the course doesn't cover that would be valuable
+      5. Formulate 3-5 search queries targeting those gaps
+
+      Present the research plan: topic, related modules, search queries.
+    input:
+      topic: ${args.topic}
+    output:
+      type: text
+      key: research_plan
+    gate: confirm
+
+  - name: execute-search
+    executor: prompt
+    prompt: |
+      Execute web research using Firecrawl:
+
+      For each search query:
+      1. Search and collect top 3-5 results
+      2. For each result, extract:
+         - Title, URL, publication date
+         - Key insights (2-3 sentences, original wording)
+         - How it supplements the course material
+         - Relevance score (1-5)
+      3. Filter: discard results with relevance < 3
+
+      Quality criteria:
+      - Authoritative sources (.edu, major publications, recognized experts)
+      - Recent (within 2 years unless foundational)
+      - Adds perspective not in course materials
+      - Factually accurate (cross-reference claims across sources)
+    input:
+      plan: ${define-research.research_plan}
+    output:
+      type: text
+      key: search_results
+
+  - name: synthesize-findings
+    executor: prompt
+    prompt: |
+      Synthesize research findings into a structured research note:
+
+      # Research Note: ${topic}
+      *Generated: ${timestamp} | Related Modules: ${module_list}*
+
+      ## Key Findings
+      (3-5 bullet points, each with source citation)
+
+      ## How This Connects to Course Material
+      (Map findings to specific module topics)
+
+      ## Implications for Learning
+      (What this means for the learner's understanding)
+
+      ## Sources
+      (Numbered list with URLs)
+
+      ## Suggested SRS Items
+      (2-3 flashcard candidates from this research)
+
+      Write to: output/${course-id}/notes/research-${topic-slug}.md
+    input:
+      results: ${execute-search.search_results}
+      plan: ${define-research.research_plan}
+    output:
+      type: file
+      key: research_note
+      path: output/${course-id}/notes/research-${topic-slug}.md
+
+  - name: sync-and-report
+    executor: prompt
+    optional: true
+    prompt: |
+      If Notion is enabled:
+      - Create Notion page with tags: research, ${topic}, ${course-id}
+
+      Report to learner:
+      - Research note location
+      - Key finding count
+      - Module connections identified
+      - SRS items suggested
+
+      Keep under 8 lines.
+    input:
+      note: ${synthesize-findings.research_note}
+    output:
+      type: text
+      key: summary
+    gate: display
