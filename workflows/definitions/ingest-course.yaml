@@ -1,0 +1,227 @@
+# Workflow: Ingest Course Materials
+# Triggered by: /ingest [course-id]
+# Scans materials directory, builds configs, populates indexes
+
+name: ingest-course
+description: "Scan and index course materials — build module configs, glossary, and retrieval indexes"
+version: "1.0"
+
+context:
+  policies: [context-discipline, anti-pattern-guards]
+  memory_scopes: []
+  indexes: []
+
+incremental: true  # Skip already-indexed modules unless --force
+
+steps:
+  - name: validate-materials
+    executor: prompt
+    prompt: |
+      Validate the course materials directory exists and is accessible.
+
+      1. Read course.yaml to get materials_path
+      2. Verify the directory exists at ${materials_path}
+      3. List all subdirectories (these should map to modules)
+      4. Report what was found: file count, types, directory structure
+
+      Handle naming inconsistencies:
+      - "Mod 1", "Module 1", "module 1", "mod-01" → all normalize to module 01
+      - Map each discovered directory to a module sequence number
+
+      If no course.yaml exists yet, create one from the template using discovered structure.
+    input:
+      course_id: ${args.course-id}
+    output:
+      type: text
+      key: materials_scan
+
+  - name: extract-module-structure
+    executor: prompt
+    prompt: |
+      For each module directory discovered, extract structure:
+
+      1. Identify file types present:
+         - .md files → study guides (primary content)
+         - .pdf files → transcripts, reference guides, workbooks
+         - .txt files → workbook content
+         - .ipynb files → Jupyter notebooks (assignments)
+         - .pages/.docx → alternative formats (lower priority)
+
+      2. For each module, identify the primary study guide (largest .md file)
+
+      3. Build a materials manifest:
+         ```yaml
+         modules:
+           - id: "01"
+             directory: "actual/directory/name"
+             normalized: "mod-01"
+             files:
+               study_guide: "path"
+               transcripts: ["path1", "path2"]
+               quick_reference: "path"
+               workbook: "path"
+               supplementary: ["path1"]
+         ```
+
+      4. Flag any modules missing a study guide — these need manual preparation
+    input:
+      scan: ${validate-materials.materials_scan}
+    output:
+      type: text
+      key: module_structure
+
+  - name: extract-topics-and-terms
+    executor: prompt
+    prompt: |
+      For each module with a study guide:
+
+      1. Read the study guide and extract:
+         - Main topics (## level headers)
+         - Subtopics (### level headers)
+         - Key terms (bolded terms, terms in definitions)
+         - Learning outcomes (if stated)
+         - Cross-references to other modules
+
+      2. Use LLM-driven identification (not just keyword extraction):
+         - Identify key frameworks and models mentioned
+         - Identify definitions and their associated terms
+         - Identify case studies and their key lessons
+         - Identify practical applications described
+
+      3. Build a preliminary glossary from all discovered terms
+
+      Do NOT read entire study guides into context at once.
+      Process one module at a time, extract, then move to the next.
+    input:
+      structure: ${extract-module-structure.module_structure}
+    output:
+      type: text
+      key: topics_and_terms
+
+  - name: generate-module-configs
+    executor: prompt
+    reads: [courses/_template/module.template.yaml]
+    prompt: |
+      Generate module config YAML files from extracted topics.
+
+      For each module, create a config following module.template.yaml schema:
+      - id, title, sequence from materials scan
+      - learning_outcomes from study guide (with Bloom levels assigned)
+      - topics with subtopics, key_terms, and source_files
+      - prerequisites based on module sequence and cross-references
+      - estimated_hours (rough estimate from content volume)
+      - materials paths pointing to actual files
+      - mastery_indicators derived from learning outcomes
+      - cross_references from detected inter-module connections
+
+      Write each config to: courses/${course-id}/modules/{nn}-{name}.yaml
+
+      For modules without study guides, create a minimal config with
+      just id, title, and materials paths — flag as "needs enrichment".
+    input:
+      topics: ${extract-topics-and-terms.topics_and_terms}
+      structure: ${extract-module-structure.module_structure}
+    output:
+      type: file
+      key: module_configs
+      path: courses/${course-id}/modules/
+
+  - name: generate-glossary
+    executor: prompt
+    prompt: |
+      Build the course glossary from all extracted terms.
+
+      Format:
+      ```yaml
+      course_id: "${course-id}"
+      terms:
+        - term: "Term Name"
+          definition: "Clear, concise definition"
+          module_sources: ["01", "03"]  # Where this term appears
+          related_terms: ["Other Term"]
+          bloom_level: "remember"  # Level needed to know this term
+      ```
+
+      Organize alphabetically. Include cross-references between related terms.
+      For terms used across modules, note all modules where they appear.
+    input:
+      topics: ${extract-topics-and-terms.topics_and_terms}
+    output:
+      type: file
+      key: glossary
+      path: courses/${course-id}/glossary.yaml
+
+  - name: build-indexes
+    executor: prompt
+    prompt: |
+      Build retrieval indexes for the course:
+
+      1. **concepts.yaml** — Maps concepts to modules and files
+         ```yaml
+         concepts:
+           - name: "Delta Model"
+             modules: ["01"]
+             files: ["study-guide.md"]
+             type: "framework"
+         ```
+
+      2. **glossary-index.yaml** — Unified term lookup across courses
+         Merge new terms with any existing entries.
+
+      3. **recent.yaml** — Track what was just indexed
+         ```yaml
+         last_ingest:
+           course_id: "${course-id}"
+           timestamp: "${now}"
+           modules_indexed: ["01", "02", "03", "04"]
+         ```
+
+      Write all three to indexes/ directory.
+    input:
+      glossary: ${generate-glossary.glossary}
+      configs: ${generate-module-configs.module_configs}
+    output:
+      type: file
+      key: indexes
+      path: indexes/
+
+  - name: update-course-config
+    executor: prompt
+    prompt: |
+      Update the course.yaml with discovered module list:
+      - Add module entries with correct ids and config paths
+      - Set materials_path if not already set
+      - Verify objectives are populated (prompt user if empty)
+
+      Write updated config to courses/${course-id}/course.yaml.
+    input:
+      configs: ${generate-module-configs.module_configs}
+      course_id: ${args.course-id}
+    output:
+      type: file
+      key: course_config
+      path: courses/${course-id}/course.yaml
+
+  - name: ingest-summary
+    executor: prompt
+    prompt: |
+      Report ingest results:
+
+      **Course**: ${course-id}
+      **Modules Indexed**: list with status
+      **Terms Discovered**: count
+      **Files Processed**: count by type
+      **Missing Content**: any modules lacking study guides
+      **Suggested Next Steps**:
+      - Run `/enrich {n}` for each module to generate study materials
+      - Modules without study guides need manual preparation first
+
+      Keep summary under 15 lines.
+    input:
+      indexes: ${build-indexes.indexes}
+      configs: ${generate-module-configs.module_configs}
+      glossary: ${generate-glossary.glossary}
+    output:
+      type: text
+      key: summary
+    gate: display
