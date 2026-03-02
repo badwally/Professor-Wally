@@ -34,11 +34,11 @@ For each mastery question response, evaluate across:
 The score is the average of these five dimensions.
 
 ### Tutor Session Scoring (5 dimensions, each 0-100)
-1. **Recall accuracy**: How well did the learner recall prior material?
-2. **Conceptual understanding**: Could they explain WHY, not just WHAT?
-3. **Application ability**: Could they apply concepts to new scenarios?
-4. **Cross-module integration**: Did they connect ideas across modules?
-5. **Teaching clarity**: How clear was their teach-back explanation?
+1. **Recall**: Can they retrieve relevant facts?
+2. **Understanding**: Do they explain mechanisms, not just terms?
+3. **Application**: Can they use the concept in a new context?
+4. **Integration**: Do they connect to other concepts/modules?
+5. **Teaching**: Can they explain it clearly to others?
 
 Session quality = average of all five dimensions / 100.
 
