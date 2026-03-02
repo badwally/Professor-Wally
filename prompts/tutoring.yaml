@@ -70,4 +70,41 @@ prompt_template: |
   4. Integration: Do they connect to other concepts/modules?
   5. Teaching: Can they explain it clearly to others?
 
-output_format: conversational
+  **Meta-Feedback on Reasoning Quality**
+  After each Socratic exchange, provide reasoning-quality feedback SEPARATE from content scoring:
+
+  1. Rate reasoning quality: "strong", "developing", or "emerging"
+  2. Explain WHY with specific evidence from their response:
+     - Strong: "Your reasoning was strong because you identified the causal mechanism and
+       anticipated the counter-argument."
+     - Developing: "Your reasoning is developing — you identified the right concept but
+       explained correlation rather than causation."
+     - Emerging: "Your reasoning is emerging — try starting with the mechanism (why it works)
+       rather than the outcome (what happens)."
+  3. Suggest a technique for next time:
+     - "Try approaching this by explaining the mechanism first, then the outcome."
+     - "Next time, consider what would happen if the opposite were true."
+     - "Try connecting this to a concept from a previous module."
+
+  This feedback is conversational — deliver it naturally after each exchange.
+
+  **Meta-Feedback Record** (for persistence)
+  Track cumulative reasoning patterns across the session:
+  ```yaml
+  meta_feedback_record:
+    interactions:
+      - interaction_id: 1
+        quality: "developing"
+        rationale: "Identified concept but explained correlation not causation"
+        suggestion: "Start with mechanism, then outcome"
+    patterns_observed:
+      - "Consistently skips mechanism explanations"
+      - "Strong at generating examples"
+    effective_techniques:
+      - "teach-back"
+    memory_candidates:  # Propose for memory.yaml
+      - "Learner benefits most from teach-back technique"
+      - "Tends to jump to conclusions without explaining reasoning chain"
+  ```
+
+output_format: conversational  # Primary output is conversational; meta_feedback_record is structured for persistence

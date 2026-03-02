@@ -192,11 +192,17 @@ steps:
       2. **spaced-repetition.yaml**: Add new SRS items from incorrectly-answered questions
 
       3. **session-log.yaml**: Append session entry with full results
+         - For Socratic sessions: include meta_feedback_record from tutoring interactions
+         - Record per-interaction reasoning quality ratings and technique effectiveness
 
       4. **memory.yaml**: Record any learner insights discovered:
          - Patterns in what they struggle with
          - Effective teaching techniques for this learner
          - Concepts that clicked vs. didn't
+         - For Socratic sessions: persist reasoning patterns from meta_feedback_record
+           - e.g., "Learner skips mechanism explanations — prompt for 'why' before 'what'"
+           - e.g., "Teach-back technique is most effective for this learner"
+         - Only add to memory if pattern observed across 2+ interactions (not one-offs)
 
       5. **Checkpoint**: Clear if module section is complete; save if interrupted
     input:
