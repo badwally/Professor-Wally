@@ -3,17 +3,22 @@
 # Referenced by: scoring-rubric.md, tutoring.yaml, study-session.yaml
 
 schema_version: "1.0"
+output_path: "state/progress/{course-id}/session-log.yaml"  # Appended as session entries
 
 session_fields:
   required:
     - session_id        # Unique session identifier (timestamp-based)
     - course_id
     - module_id
-    - type: "tutor"
+    - type              # Fixed: "tutor"
     - timestamp         # ISO 8601
     - duration_minutes
-    - topics_covered: [] # Topics addressed in this session
-    - mode: "socratic"
+    - topics_covered    # List of topics addressed in this session
+    - mode              # Fixed: "socratic"
+  defaults:
+    type: "tutor"
+    mode: "socratic"
+    topics_covered: []
 
   scoring:
     dimensions:
@@ -63,7 +68,7 @@ session_fields:
           51-75: "Clear explanation with good structure; minor gaps"
           76-100: "Excellent teach-back: clear, accurate, well-structured, uses examples"
 
-    composite: "average of all 5 dimensions / 100"
+    composite: "(recall + understanding + application + integration + teaching) / 5 / 100"
     composite_range: { min: 0.00, max: 1.00 }
 
   per_interaction:
