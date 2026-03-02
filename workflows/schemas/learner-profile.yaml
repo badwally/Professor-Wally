@@ -1,0 +1,52 @@
+# Schema: Learner Profile
+# Validates state/config/learner.yaml
+# Created during /setup workflow
+
+schema_version: "1.0"
+source_template: "state/config/learner.template.yaml"
+output_path: "state/config/learner.yaml"
+
+required_fields:
+  - name
+  - learning_style.primary
+  - learning_style.preferred_session_length
+  - learning_style.preferred_depth
+  - motivation.goals
+  - motivation.accountability_style
+  - preferences.question_style
+  - preferences.feedback_style
+
+optional_fields:
+  - role
+  - email
+  - learning_style.note_taking
+  - learning_style.peak_learning_hours
+  - motivation.reward_pattern
+  - strengths.strong_areas
+  - strengths.weak_areas
+  - preferences.example_preference
+  - preferences.substack_topics
+
+validation_rules:
+  learning_style.primary:
+    type: enum
+    values: [visual, auditory, reading, kinesthetic]
+  learning_style.preferred_session_length:
+    type: integer
+    min: 10
+    max: 120
+  learning_style.preferred_depth:
+    type: enum
+    values: [breadth-first, depth-first, balanced]
+  motivation.accountability_style:
+    type: enum
+    values: [self-directed, structured-check-ins, deadline-driven]
+  preferences.question_style:
+    type: enum
+    values: [socratic, direct, mixed]
+  preferences.feedback_style:
+    type: enum
+    values: [encouraging, blunt, balanced]
+  preferences.example_preference:
+    type: enum
+    values: [real-world, academic, mixed]

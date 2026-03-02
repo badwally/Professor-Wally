@@ -1,0 +1,45 @@
+# Schema: Question Set
+# Validates generated question files in output/{course-id}/questions/
+# Created during /enrich workflow
+
+schema_version: "1.0"
+output_path: "output/{course-id}/questions/module-{nn}-{type}-questions.md"
+
+question_types:
+  study:
+    description: "Factual recall and comprehension questions"
+    count_range: [15, 20]
+    bloom_distribution:
+      remember: 0.30
+      understand: 0.40
+      apply: 0.20
+      analyze: 0.10
+    format: "short-answer"
+    scoring: "binary"  # 0 or 1
+
+  mastery:
+    description: "Progressive depth questions requiring written analysis"
+    count_range: [8, 12]
+    bloom_distribution:
+      apply: 0.25
+      analyze: 0.30
+      evaluate: 0.25
+      create: 0.20
+    format: "written-response"
+    scoring: "rubric"  # 5-point scale per dimension
+    difficulty_progression: ascending  # Easier to harder
+
+question_fields:
+  required:
+    - id                # Unique within set: "sq-01", "mq-03"
+    - question          # The prompt text
+    - bloom_level       # Which Bloom level it targets
+    - topic             # Which topic from module config
+    - expected_answer   # Reference answer for scoring
+
+  optional:
+    - hints             # Progressive hints (list)
+    - rubric_criteria   # For mastery questions: what to look for
+    - source_reference  # Where this content is from in materials
+    - difficulty        # 1-5 scale (mastery questions)
+    - srs_candidate     # Whether to seed into SRS queue (boolean)

@@ -1,0 +1,47 @@
+# Schema: Quiz Result
+# Validates quiz output from /quiz workflow
+# Written to state/progress/{course-id}/session-log.yaml entries
+
+schema_version: "1.0"
+
+result_fields:
+  required:
+    - session_id        # Unique session identifier (timestamp-based)
+    - course_id
+    - type              # "quiz" | "study" | "tutor"
+    - scope             # Module id or "cumulative"
+    - timestamp         # ISO 8601
+    - duration_minutes  # Session length
+
+  scoring:
+    overall_score:      # 0.00 - 1.00
+    questions_attempted: 0
+    questions_correct: 0
+    bloom_breakdown:    # Score per Bloom level
+      remember: null
+      understand: null
+      apply: null
+      analyze: null
+      evaluate: null
+      create: null
+    topic_breakdown: [] # Score per topic
+
+  per_question:
+    - question_id
+    - question_text
+    - learner_response
+    - expected_answer
+    - score             # 0-1 for study, 0-5 for mastery
+    - bloom_level
+    - topic
+    - feedback          # Generated feedback text
+    - srs_action        # "new" | "update" | "none"
+
+  gaps_identified: []   # Topics/concepts where score < passing
+  recommendations: []   # Suggested next actions
+
+status_levels:
+  below_passing: { max: 0.70, label: "Below Passing" }
+  passing: { min: 0.70, max: 0.80, label: "Passing" }
+  proficient: { min: 0.80, max: 0.90, label: "Proficient" }
+  mastery: { min: 0.90, label: "Mastery" }

@@ -1,0 +1,55 @@
+# Schema: Score Report
+# Validates output from /score workflow
+# Written to output/{course-id}/score-report.md
+
+schema_version: "1.0"
+output_path: "output/{course-id}/score-report.md"
+
+report_sections:
+  header:
+    - course_name
+    - generated_at       # ISO 8601
+    - total_study_hours
+    - current_streak     # Consecutive days with sessions
+
+  per_module:
+    - module_id
+    - module_title
+    - status             # not-started | in-progress | complete | mastery
+    - composite_score    # Weighted: study 0.20, mastery 0.50, tutor 0.30
+    - component_scores:
+        study_questions: null
+        mastery_questions: null
+        tutor_sessions: null
+    - bloom_breakdown:
+        remember: null
+        understand: null
+        apply: null
+        analyze: null
+        evaluate: null
+        create: null
+    - trend              # improving | stable | declining (based on last 3 sessions)
+    - strongest_topics: []
+    - weakest_topics: []
+    - gaps: []           # Specific concepts needing work
+    - sessions_count: 0
+    - last_session: null # ISO 8601
+
+  cumulative:
+    - modules_completed  # count
+    - modules_total      # count
+    - overall_score      # Weighted average of module composites
+    - strongest_topics: []
+    - weakest_topics: []
+    - srs_retention_rate # Percentage of SRS items recalled correctly
+    - srs_items_active   # Items in SRS queue
+    - total_study_hours
+    - streak_days
+    - recommendations: []  # Ordered list of what to do next
+
+scoring_formula:
+  composite: "(study_questions * 0.20) + (mastery_questions * 0.50) + (tutor_sessions * 0.30)"
+  trend_window: 3        # Number of recent sessions to evaluate trend
+  trend_thresholds:
+    improving: 0.05      # Score increased >= 5% over window
+    declining: -0.05     # Score decreased >= 5% over window

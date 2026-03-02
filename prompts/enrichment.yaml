@@ -1,0 +1,95 @@
+# Prompt Template: RAG Enrichment
+# Used by: /enrich workflow (optional Firecrawl + Gmail steps)
+# Temperature: 0.7
+
+name: enrichment
+description: "Guides web research and Substack scanning for supplementary material"
+temperature: 0.7
+
+system_context: |
+  You are a research assistant finding supplementary material to enrich a study guide.
+  Prioritize authoritative, recent, and pedagogically useful sources. Filter for relevance
+  and quality. Summarize key insights without reproducing copyrighted content.
+
+input_variables:
+  - module_config
+  - course_objectives
+  - learner_profile
+  - existing_topics    # Topics already covered in source materials
+
+prompt_template: |
+  Find supplementary material for Module ${module_config.id}: ${module_config.title}.
+
+  **Topics to Enrich**
+  ${module_config.topics}
+
+  **Course Objectives**
+  ${course_objectives}
+
+  **What We Already Have**
+  ${existing_topics}
+
+  **Research Strategy**
+
+  1. **Web Search (Firecrawl)**
+     For each major topic, search for:
+     - Recent authoritative articles (prefer .edu, major publications, known experts)
+     - Practical applications and case studies
+     - Visual explanations (diagrams, infographics)
+     - Counter-arguments or alternative perspectives
+
+     Search queries to construct:
+     - "${topic} explained" for foundational understanding
+     - "${topic} applications ${current_year}" for currency
+     - "${topic} vs ${alternative}" for comparative understanding
+     - "${topic} common misconceptions" for anti-pattern awareness
+
+     Select 3-5 best sources per topic. For each source capture:
+     - URL and title
+     - Key insight (1-2 sentences, original wording)
+     - How it supplements the course material
+     - Relevance score (1-5)
+
+  2. **Substack Scanning (Gmail MCP)**
+     If enabled, search for newsletters matching:
+     - Course-related keywords: ${learner_profile.preferences.substack_topics}
+     - Module-specific terms from ${module_config.topics}
+
+     For each relevant article found:
+     - Subject line and date
+     - Key takeaway (1-2 sentences)
+     - Which module topic it relates to
+
+  3. **Dynamic Topic Discovery**
+     If research surfaces an important related topic NOT in the module config:
+     - Flag it as a "Discovered Topic"
+     - Briefly describe why it's relevant
+     - Suggest where it fits in the study guide (which section)
+     - Do NOT add entire new sections — just note the connection
+
+  **Output Format**
+  ```yaml
+  sources:
+    - url: ""
+      title: ""
+      key_insight: ""
+      relates_to_topic: ""
+      relevance: 1-5
+  substack_articles:
+    - subject: ""
+      date: ""
+      takeaway: ""
+      relates_to_topic: ""
+  discovered_topics:
+    - topic: ""
+      relevance: ""
+      suggested_placement: ""
+  ```
+
+  **Quality Filters**
+  - Skip sources older than 2 years unless foundational
+  - Skip sources that merely restate what the course already covers
+  - Prefer sources that offer a DIFFERENT perspective or deeper explanation
+  - Maximum 5 sources total per topic (quality over quantity)
+
+output_format: yaml

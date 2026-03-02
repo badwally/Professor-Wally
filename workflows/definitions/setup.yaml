@@ -1,0 +1,197 @@
+# Workflow: First-Run Setup
+# Triggered by: /setup
+# Creates learner profile, course config, and tool integrations
+
+name: setup
+description: "First-run wizard — builds your learner profile and course configuration"
+version: "1.0"
+
+context:
+  policies: [anti-pattern-guards, context-discipline]
+  memory_scopes: []
+  indexes: []
+
+steps:
+  - name: welcome
+    executor: prompt
+    prompt: |
+      Welcome to the AI Tutor system! I'll help you set up your personal learning environment.
+
+      This setup has 5 steps:
+      1. Your learning profile — how you learn best
+      2. Course objectives — what you want to achieve
+      3. Success definitions — how we measure it
+      4. Tool integrations — optional MCP connections
+      5. Initialize state files — progress tracking, SRS queue, memory
+
+      Each step involves a few questions. Your answers shape how the system teaches you.
+    output:
+      type: text
+      key: welcome
+    gate: confirm
+
+  - name: setup-learning-style
+    executor: prompt
+    reads: [state/config/learner.template.yaml]
+    prompt: |
+      Let's build your learner profile. I'll ask you a few questions about how you learn best.
+
+      **Learning Style**
+      1. When tackling new material, do you prefer: visual diagrams, listening to explanations, reading text, or hands-on practice?
+      2. How do you take notes? (outline, cornell method, mind maps, freeform, or don't take notes)
+      3. How long is your ideal study session? (in minutes, 10-120)
+      4. When are you sharpest? (e.g., "mornings 6-8am", "evenings 8-10pm")
+      5. Do you prefer to go deep on one topic or cover breadth first?
+
+      **Motivation**
+      6. What are your main learning goals? (list as many as apply)
+      7. How do you hold yourself accountable? (self-directed, scheduled check-ins, hard deadlines)
+      8. What motivates you? (streaks, milestone celebrations, or intrinsic satisfaction)
+
+      **Strengths & Gaps**
+      9. What subjects/skills are you already strong in?
+      10. What areas feel weakest or most unfamiliar?
+
+      **Preferences**
+      11. Do you prefer Socratic questioning (guided discovery) or direct explanations?
+      12. What feedback style works for you? (encouraging, blunt/direct, balanced)
+      13. Do you prefer real-world examples, academic examples, or a mix?
+
+      Gather answers conversationally. Adapt phrasing to the learner's role and context.
+    output:
+      type: file
+      key: learner_profile
+      path: state/config/learner.yaml
+    gate: edit
+
+  - name: setup-course-objectives
+    executor: prompt
+    reads: [courses/_template/course.template.yaml]
+    prompt: |
+      Now let's define what you want to achieve in your course.
+
+      Reference the course template for the required structure.
+
+      Ask the learner:
+      1. What course are you studying? (name and provider)
+      2. What are your top 3-5 learning objectives? For each:
+         - What will you be able to do?
+         - How would you measure achievement?
+         - At what Bloom level? (remembering facts, understanding concepts, applying skills, analyzing problems, evaluating approaches, creating solutions)
+      3. Where are your course materials stored? (file path)
+      4. How many modules does the course have? List their names if known.
+
+      Build the course.yaml from their answers. Use the template schema.
+      Set default scoring thresholds: passing 0.70, mastery 0.90, fluency 0.80.
+    input:
+      learner: ${setup-learning-style.learner_profile}
+    output:
+      type: file
+      key: course_config
+      path: courses/${course-id}/course.yaml
+    gate: edit
+
+  - name: setup-success-criteria
+    executor: prompt
+    prompt: |
+      Let's define what success looks like for you.
+
+      Based on the objectives we just set, ask:
+      1. What score threshold means "I've learned this well enough"? (default: 80%)
+      2. Do you want stricter criteria for certain modules?
+      3. Any external milestones? (e.g., "pass certification exam by March")
+      4. How do you want to handle modules where you score below threshold?
+         - Forced review before advancing
+         - Flag for review but allow advancement
+         - Strict: must achieve threshold to proceed
+
+      Update the course.yaml success_criteria section with their answers.
+    input:
+      course: ${setup-course-objectives.course_config}
+      learner: ${setup-learning-style.learner_profile}
+    output:
+      type: file
+      key: course_config_updated
+      path: courses/${course-id}/course.yaml
+    gate: edit
+
+  - name: setup-tools
+    executor: prompt
+    reads: [state/config/tools.template.yaml]
+    prompt: |
+      Finally, let's configure optional tool integrations.
+
+      The system can connect to three external services:
+
+      1. **Notion** — Sync study notes and guides as Notion pages with tags
+         - Do you use Notion for note-taking?
+         - If yes: what database/page should notes go to?
+
+      2. **Gmail (Substack scanning)** — Find supplementary articles from newsletters
+         - Do you subscribe to relevant Substack newsletters?
+         - If yes: what keywords should we scan for? (e.g., "AI", "machine learning", "product")
+
+      3. **Firecrawl (Web Research)** — RAG-style enrichment with current web sources
+         - Do you want study guides augmented with up-to-date web research?
+
+      All three are optional. The system works fully without them.
+
+      Write tools.yaml with their choices. Set `enabled: true/false` for each.
+    input:
+      learner: ${setup-learning-style.learner_profile}
+    output:
+      type: file
+      key: tools_config
+      path: state/config/tools.yaml
+    gate: edit
+
+  - name: initialize-state
+    executor: prompt
+    prompt: |
+      Initialize all state files for the configured course:
+
+      1. Create `state/courses/_active.yaml` pointing to the configured course
+      2. Create `state/progress/{course-id}/progress.yaml` with all modules set to status: not-started
+      3. Create `state/progress/{course-id}/spaced-repetition.yaml` with empty items list
+      4. Create `state/progress/{course-id}/session-log.yaml` with empty sessions list
+      5. Create `state/memory/memory.yaml` with initial learner insights from setup
+
+      Use the course config to populate module lists.
+      Set all scores to null (not yet assessed).
+    input:
+      course: ${setup-success-criteria.course_config_updated}
+      learner: ${setup-learning-style.learner_profile}
+      tools: ${setup-tools.tools_config}
+    output:
+      type: text
+      key: state_initialized
+
+  - name: setup-summary
+    executor: prompt
+    prompt: |
+      Setup complete! Present a summary:
+
+      **Your Learner Profile**
+      - Learning style, session length, preferences (brief summary)
+
+      **Course Configuration**
+      - Course name, module count, scoring thresholds
+
+      **Tool Integrations**
+      - Which MCPs are enabled
+
+      **Suggested Next Steps**
+      1. Run `/ingest` to scan and index your course materials
+      2. Run `/enrich 1` to generate your first enriched study guide
+      3. Run `/study 1` to begin your first study session
+
+      Keep the summary concise — no more than 20 lines.
+    input:
+      learner: ${setup-learning-style.learner_profile}
+      course: ${setup-success-criteria.course_config_updated}
+      tools: ${setup-tools.tools_config}
+      state: ${initialize-state.state_initialized}
+    output:
+      type: text
+      key: summary
+    gate: display

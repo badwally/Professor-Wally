@@ -1,0 +1,43 @@
+# Schema: Module Configuration
+# Validates courses/{course-id}/modules/{nn}-name.yaml
+# Created during /ingest workflow
+
+schema_version: "1.0"
+source_template: "courses/_template/module.template.yaml"
+output_path: "courses/{course-id}/modules/{nn}-name.yaml"
+
+required_fields:
+  - id
+  - title
+  - sequence
+  - learning_outcomes
+  - topics
+
+optional_fields:
+  - description
+  - prerequisites
+  - estimated_hours
+  - materials
+  - mastery_indicators
+  - cross_references
+
+validation_rules:
+  id:
+    type: string
+    pattern: "^[0-9]{2}$"
+  sequence:
+    type: integer
+    min: 1
+  learning_outcomes:
+    type: list
+    min_items: 1
+    item_fields:
+      required: [outcome, bloom_level, key_concepts]
+      bloom_level:
+        type: enum
+        values: [remember, understand, apply, analyze, evaluate, create]
+  topics:
+    type: list
+    min_items: 1
+    item_fields:
+      required: [name]

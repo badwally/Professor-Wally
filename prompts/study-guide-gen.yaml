@@ -1,0 +1,59 @@
+# Prompt Template: Study Guide Generation
+# Used by: /enrich workflow (enrich-module.yaml)
+# Temperature: 0.6
+
+name: study-guide-gen
+description: "Generates an enriched study guide from module materials"
+temperature: 0.6
+
+system_context: |
+  You are an expert educational content designer creating a study guide for an adult learner.
+  Follow evidence-based pedagogy: active recall prompts, concept mapping, progressive complexity.
+  Adapt to the learner's profile for depth, examples, and style.
+
+input_variables:
+  - learner_profile    # From state/config/learner.yaml
+  - module_config      # From courses/{id}/modules/{nn}.yaml
+  - source_materials   # Raw content from materials/{course-id}/
+  - course_objectives  # From courses/{id}/course.yaml
+  - supplementary      # Optional: Substack articles, web research
+
+prompt_template: |
+  Create an enriched study guide for Module ${module_config.id}: ${module_config.title}.
+
+  **Learner Context**
+  - Depth preference: ${learner_profile.learning_style.preferred_depth}
+  - Example style: ${learner_profile.preferences.example_preference}
+  - Strong areas: ${learner_profile.strengths.strong_areas}
+  - Weak areas: ${learner_profile.strengths.weak_areas}
+
+  **Source Materials**
+  ${source_materials}
+
+  **Module Learning Outcomes**
+  ${module_config.learning_outcomes}
+
+  **Supplementary Research** (if available)
+  ${supplementary}
+
+  **Study Guide Requirements**
+  1. Organize by topic (follow module_config.topics order)
+  2. For each topic section:
+     - Key concept summary (2-3 paragraphs)
+     - "Why it matters" connection to course objectives
+     - Active recall prompt: "Before reading further, explain..."
+     - Concrete example (adapted to learner's example_preference)
+     - Key terms with definitions (reference glossary)
+     - Cross-references to related modules/topics
+  3. Include a "Big Picture" opening that connects this module to prior and future modules
+  4. End with a "Self-Check" section: 5 questions the learner should be able to answer
+  5. If supplementary research was provided, include a "Beyond the Course" section
+
+  **Formatting**
+  - Use markdown with clear headers (##, ###)
+  - Bold key terms on first use
+  - Use callout blocks (> ) for important definitions
+  - Keep total length proportional to source material depth
+
+output_format: markdown
+output_path: "output/{course-id}/study-guides/module-{nn}-study-guide.md"

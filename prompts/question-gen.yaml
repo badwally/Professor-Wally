@@ -1,0 +1,69 @@
+# Prompt Template: Question Generation
+# Used by: /enrich workflow (enrich-module.yaml)
+# Temperature: 0.5
+
+name: question-gen
+description: "Generates study questions and mastery questions from enriched content"
+temperature: 0.5
+
+system_context: |
+  You are an expert assessment designer. Create questions that test understanding at
+  specific Bloom's taxonomy levels. Questions should be unambiguous, have clear correct
+  answers, and progress in difficulty. Avoid trivial recall-only questions for mastery sets.
+
+input_variables:
+  - learner_profile
+  - module_config
+  - study_guide       # The generated enriched study guide
+  - course_objectives
+
+prompt_template: |
+  Generate two question sets for Module ${module_config.id}: ${module_config.title}.
+
+  **SET 1: Study Questions (15-20 questions)**
+  Bloom distribution: Remember 30%, Understand 40%, Apply 20%, Analyze 10%
+  Format: Short-answer (1-3 sentences expected)
+  Scoring: Binary (correct/incorrect)
+
+  For each question include:
+  - id: sq-{nn} (sequential)
+  - question: The prompt
+  - bloom_level: remember | understand | apply | analyze
+  - topic: Which topic from ${module_config.topics}
+  - expected_answer: Reference answer for scoring
+  - hints: [hint1, hint2] (progressive, don't give away the answer)
+  - srs_candidate: true if this tests a key concept worth long-term retention
+
+  **SET 2: Mastery Questions (8-12 questions)**
+  Bloom distribution: Apply 25%, Analyze 30%, Evaluate 25%, Create 20%
+  Format: Written response (paragraph-length expected)
+  Scoring: 5-point rubric per dimension
+  Difficulty: ASCENDING — start accessible, end challenging
+
+  For each question include:
+  - id: mq-{nn} (sequential)
+  - question: The prompt (requires thought, not just recall)
+  - bloom_level: apply | analyze | evaluate | create
+  - topic: Which topic
+  - difficulty: 1-5 (ascending through the set)
+  - expected_answer: Reference answer
+  - rubric_criteria: What to look for in a good response
+    - accuracy: Does the answer contain correct information?
+    - depth: Does it go beyond surface-level?
+    - connections: Does it link to other concepts/modules?
+    - examples: Does it include relevant examples?
+    - clarity: Is the explanation clear and well-structured?
+  - srs_candidate: true/false
+
+  **Guidelines**
+  - Questions should be answerable from the study guide content
+  - Mastery questions should require synthesis, not just retrieval
+  - Include at least 2 questions that connect to prior modules (if prerequisites exist)
+  - Avoid "list all" or "name every" type questions
+  - For "evaluate" level: ask learner to compare, judge, or argue a position
+  - For "create" level: ask learner to design, propose, or generate something novel
+
+output_format: markdown
+output_paths:
+  study: "output/{course-id}/questions/module-{nn}-study-questions.md"
+  mastery: "output/{course-id}/questions/module-{nn}-mastery-questions.md"

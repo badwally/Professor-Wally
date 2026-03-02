@@ -1,0 +1,52 @@
+# Schema: Course Configuration
+# Validates courses/{course-id}/course.yaml
+# Created during /setup or /ingest workflows
+
+schema_version: "1.0"
+source_template: "courses/_template/course.template.yaml"
+output_path: "courses/{course-id}/course.yaml"
+
+required_fields:
+  - id
+  - name
+  - objectives
+  - materials_path
+  - modules
+  - scoring.fluency_threshold
+  - scoring.weights
+
+optional_fields:
+  - provider
+  - version
+  - success_criteria
+  - glossary
+  - substack_query
+  - notion_database_id
+  - scoring.passing_threshold
+  - scoring.mastery_threshold
+
+validation_rules:
+  id:
+    type: string
+    pattern: "^[a-z0-9-]+$"
+  objectives:
+    type: list
+    min_items: 1
+    item_fields:
+      required: [text, bloom_level]
+      bloom_level:
+        type: enum
+        values: [remember, understand, apply, analyze, evaluate, create]
+  modules:
+    type: list
+    min_items: 1
+    item_fields:
+      required: [id, config]
+  scoring.fluency_threshold:
+    type: float
+    min: 0.50
+    max: 1.00
+  scoring.weights:
+    type: object
+    required: [study_questions, mastery_questions, tutor_sessions]
+    sum_to: 1.00

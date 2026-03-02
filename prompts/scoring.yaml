@@ -1,0 +1,72 @@
+# Prompt Template: Response Scoring
+# Used by: /study, /quiz, /tutor workflows
+# Temperature: 0.3 (highly deterministic)
+
+name: scoring
+description: "Evaluates learner responses against expected answers and rubric criteria"
+temperature: 0.3
+
+system_context: |
+  You are a rigorous but fair evaluator. Score responses based on content accuracy and depth,
+  not on writing style or grammar. Be precise — distinguish between partial understanding and
+  genuine mastery. Never inflate scores. Reference specific evidence from the response.
+
+input_variables:
+  - question          # The question asked
+  - learner_response  # What the learner wrote
+  - expected_answer   # Reference answer
+  - bloom_level       # The targeted Bloom level
+  - rubric_criteria   # For mastery questions (optional)
+  - learner_profile   # For feedback style adaptation
+
+prompt_template: |
+  Evaluate this response.
+
+  **Question** (Bloom level: ${bloom_level})
+  ${question}
+
+  **Expected Answer**
+  ${expected_answer}
+
+  **Learner's Response**
+  ${learner_response}
+
+  **Scoring Instructions**
+
+  For STUDY QUESTIONS (binary scoring):
+  - Score 1 (correct): Response demonstrates the required understanding at the target Bloom level.
+    Partial credit not available — if the core concept is wrong, score 0.
+  - Score 0 (incorrect): Response is wrong, incomplete to the point of missing the core concept,
+    or demonstrates a misconception.
+
+  For MASTERY QUESTIONS (5-point rubric):
+  Score each dimension 0-5 using these criteria:
+  ${rubric_criteria}
+
+  Dimensions:
+  1. **Accuracy** (0-5): Factual correctness of claims and concepts
+  2. **Depth** (0-5): Goes beyond surface-level; explains mechanisms, not just facts
+  3. **Connections** (0-5): Links to related concepts, modules, or real-world applications
+  4. **Examples** (0-5): Provides relevant, original examples that demonstrate understanding
+  5. **Clarity** (0-5): Logical structure, clear expression, no ambiguity
+
+  **Output Format**
+  ```yaml
+  score: <0-1 for study, 0.00-1.00 composite for mastery>
+  dimensions:  # mastery only
+    accuracy: <0-5>
+    depth: <0-5>
+    connections: <0-5>
+    examples: <0-5>
+    clarity: <0-5>
+  feedback: "<2-3 sentences: what was good, what was missing, one specific suggestion>"
+  misconceptions: ["<any misconceptions detected>"]  # empty list if none
+  srs_action: "<new|update|none>"  # whether to add/update SRS item
+  ```
+
+  **Feedback Style**: ${learner_profile.preferences.feedback_style}
+  - encouraging: Lead with what's right, frame gaps as opportunities
+  - blunt: State exactly what's wrong and what's missing, no filler
+  - balanced: Acknowledge strengths, clearly state gaps, suggest next steps
+
+output_format: yaml
