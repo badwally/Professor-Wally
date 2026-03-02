@@ -118,6 +118,10 @@ steps:
       - Concrete examples: "Give me a real-world example of [concept]"
       - Cross-module interleaving: "How does this connect to [prior module concept]?"
       - Rate tutor interaction on 5 dimensions (recall, understanding, application, integration, teaching)
+      - Before selecting a technique, check checkpoint.techniques_used
+      - Rotate through all 5 techniques before repeating any
+      - Append each technique used to checkpoint.techniques_used
+      - If resuming from checkpoint, continue rotation from where left off
 
       **CHECKPOINT:**
       After each section, save progress:
@@ -128,6 +132,9 @@ steps:
         timestamp: "${now}"
         sections_completed: ${count}
         sections_remaining: ${count}
+        techniques_used: []  # Socratic mode: tracks techniques applied this session
+                             # Values: elaborative-interrogation, teach-back,
+                             #         concrete-examples, interleaving, socratic-chain
       ```
 
       **PACING:**
