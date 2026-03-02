@@ -1,0 +1,93 @@
+# Schema: Tutor Session Result
+# Validates tutor interaction scoring from /tutor and /study (Socratic mode)
+# Referenced by: scoring-rubric.md, tutoring.yaml, study-session.yaml
+
+schema_version: "1.0"
+
+session_fields:
+  required:
+    - session_id        # Unique session identifier (timestamp-based)
+    - course_id
+    - module_id
+    - type: "tutor"
+    - timestamp         # ISO 8601
+    - duration_minutes
+    - topics_covered: [] # Topics addressed in this session
+    - mode: "socratic"
+
+  scoring:
+    dimensions:
+      recall:
+        min: 0
+        max: 100
+        description: "Can retrieve relevant facts"
+        levels:
+          0-25: "Cannot recall basic facts even with prompting"
+          26-50: "Recalls some facts but with significant gaps or errors"
+          51-75: "Recalls most facts correctly with minor gaps"
+          76-100: "Recalls all relevant facts quickly and accurately"
+      understanding:
+        min: 0
+        max: 100
+        description: "Explains mechanisms, not just terms"
+        levels:
+          0-25: "Can only repeat definitions without explaining how or why"
+          26-50: "Partial explanation; mixes up cause and effect or key mechanisms"
+          51-75: "Explains core mechanisms correctly; some nuance missing"
+          76-100: "Explains mechanisms fully with nuance and appropriate caveats"
+      application:
+        min: 0
+        max: 100
+        description: "Uses concept in new context"
+        levels:
+          0-25: "Cannot apply concept outside the exact context presented"
+          26-50: "Applies concept in obvious cases but struggles with novel contexts"
+          51-75: "Applies concept to new contexts with minor errors or gaps"
+          76-100: "Fluently applies concept to novel and complex contexts"
+      integration:
+        min: 0
+        max: 100
+        description: "Connects to other concepts/modules"
+        levels:
+          0-25: "Treats concept in isolation; no connections made"
+          26-50: "Makes superficial connections when prompted"
+          51-75: "Identifies meaningful connections across topics or modules"
+          76-100: "Spontaneously synthesizes across modules with original insight"
+      teaching:
+        min: 0
+        max: 100
+        description: "Explains clearly to others"
+        levels:
+          0-25: "Explanation is confusing or inaccurate"
+          26-50: "Explanation covers basics but is disorganized or incomplete"
+          51-75: "Clear explanation with good structure; minor gaps"
+          76-100: "Excellent teach-back: clear, accurate, well-structured, uses examples"
+
+    composite: "average of all 5 dimensions / 100"
+    composite_range: { min: 0.00, max: 1.00 }
+
+  per_interaction:
+    - interaction_id    # Sequential within session
+    - technique         # elaborative-interrogation | teach-back | concrete-examples | interleaving | socratic-chain
+    - topic
+    - dimension_scores: # Which dimensions this interaction tested
+        recall: null
+        understanding: null
+        application: null
+        integration: null
+        teaching: null
+    - meta_feedback:    # Reasoning quality feedback
+        quality: ""     # "strong" | "developing" | "emerging"
+        rationale: ""   # Why this rating
+        suggestion: ""  # Technique recommendation for improvement
+
+  meta_feedback_summary:
+    reasoning_patterns: []   # Observed patterns (e.g., "skips mechanism explanations")
+    effective_techniques: [] # Techniques that worked well for this learner
+    growth_areas: []         # Areas where reasoning is developing
+
+status_levels:
+  below_passing: { max: 0.70, label: "Below Passing" }
+  passing: { min: 0.70, max: 0.80, label: "Passing" }
+  proficient: { min: 0.80, max: 0.90, label: "Proficient" }
+  mastery: { min: 0.90, label: "Mastery" }
