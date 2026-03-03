@@ -379,10 +379,10 @@ The three components weight assessment depth: mastery questions count most becau
 | Dimension | What It Measures |
 |-----------|-----------------|
 | Accuracy | Are facts and concepts correct? |
-| Completeness | Does the response address all parts? |
-| Reasoning | Is logic sound and well-explained? |
-| Application | Are frameworks applied appropriately? |
-| Integration | Does it connect to other topics/modules? |
+| Depth | Beyond surface-level, explains mechanisms |
+| Connections | Links to related concepts |
+| Examples | Relevant, original examples |
+| Clarity | Logical structure, clear expression |
 
 - Score = average of all five dimensions (already normalized to 0-1)
 - Bloom distribution: Apply 25%, Analyze 30%, Evaluate 25%, Create 20%

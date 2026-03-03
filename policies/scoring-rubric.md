@@ -26,10 +26,10 @@ Evaluate all learner responses consistently using this rubric framework.
 ### Mastery Question Evaluation Dimensions
 For each mastery question response, evaluate across:
 1. **Accuracy**: Are the facts and concepts correct?
-2. **Completeness**: Does it address all parts of the question?
-3. **Reasoning**: Is the logic sound and well-explained?
-4. **Application**: Does it apply frameworks/concepts appropriately?
-5. **Integration**: Does it connect to other topics or modules?
+2. **Depth**: Beyond surface-level, explains mechanisms
+3. **Connections**: Links to related concepts
+4. **Examples**: Relevant, original examples
+5. **Clarity**: Logical structure, clear expression
 
 The score is the average of these five dimensions.
 

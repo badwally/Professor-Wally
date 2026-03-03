@@ -291,7 +291,7 @@ Start your first interactive study session:
 **Composite scoring formula:**
 
 ```
-module_score = (study_questions * 0.20) + (mastery_questions * 0.50) + (tutor_quality * 0.30)
+module_score = (study_questions * 0.20) + (mastery_questions * 0.50) + (tutor_sessions * 0.30)
 ```
 
 **Status levels:**
