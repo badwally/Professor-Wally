@@ -29,5 +29,6 @@ workflows/runs/
 .vscode/
 .idea/
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings (except skills, which define /commands)
+.claude/*
+!.claude/skills/
